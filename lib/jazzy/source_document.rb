@@ -1,7 +1,5 @@
 require 'pathname'
 
-require 'jazzy/jazzy_markdown'
-
 module Jazzy
   class SourceDocument < SourceDeclaration
     attr_accessor :overview
@@ -38,7 +36,7 @@ module Jazzy
     end
 
     def fallback_readme
-      %w(README.md README.markdown README.mdown README).each do |potential_name|
+      %w[README.md README.markdown README.mdown README].each do |potential_name|
         file = config.source_directory + potential_name
         return file.read if file.exist?
       end

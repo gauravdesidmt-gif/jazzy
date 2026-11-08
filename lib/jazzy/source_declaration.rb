@@ -56,12 +56,26 @@ module Jazzy
       name.split(/[\(\)]/) if type.objc_category?
     end
 
+    def display_declaration
+      if Config.instance.hide_declarations == 'objc'
+        other_language_declaration
+      else
+        declaration
+      end
+    end
+
+    def display_other_language_declaration
+      other_language_declaration unless
+        %w[swift objc].include? Config.instance.hide_declarations
+    end
+
     attr_accessor :file
     attr_accessor :line
     attr_accessor :column
     attr_accessor :usr
     attr_accessor :modulename
     attr_accessor :name
+    attr_accessor :objc_name
     attr_accessor :declaration
     attr_accessor :other_language_declaration
     attr_accessor :abstract
@@ -76,10 +90,7 @@ module Jazzy
     attr_accessor :start_line
     attr_accessor :end_line
     attr_accessor :nav_order
-
-    def overview
-      "#{alternative_abstract}\n\n#{abstract}\n\n#{discussion}".strip
-    end
+    attr_accessor :url_name
 
     def alternative_abstract
       if file = alternative_abstract_file
@@ -89,7 +100,8 @@ module Jazzy
 
     def alternative_abstract_file
       abstract_glob.select do |f|
-        File.basename(f).split('.').first == name
+        # allow Structs.md or Structures.md
+        [name, url_name].include?(File.basename(f).split('.').first)
       end.first
     end
 

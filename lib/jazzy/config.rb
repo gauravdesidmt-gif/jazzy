@@ -92,7 +92,7 @@ module Jazzy
 
     # ──────── Build ────────
 
-    # rubocop:disable Style/AlignParameters
+    # rubocop:disable Layout/AlignParameters
 
     config_attr :output,
       description: 'Folder to output the HTML docs to',
@@ -127,6 +127,15 @@ module Jazzy
       description: 'The SDK for which your code should be built.',
       default: 'macosx'
 
+    config_attr :hide_declarations,
+      command_line: '--hide-declarations [objc|swift] ',
+      description: 'Hide declarations in the specified language. Given that ' \
+                   'generating Swift docs only generates Swift declarations, ' \
+                   'this is only really useful to display just the Swift ' \
+                   'declarations & names when generating docs for an ' \
+                   'Objective-C framework.',
+      default: ''
+
     config_attr :config_file,
       command_line: '--config PATH',
       description: ['Configuration file (.yaml or .json)',
@@ -150,8 +159,8 @@ module Jazzy
       parse: ->(sd) { expand_path(sd) }
 
     config_attr :excluded_files,
-      command_line: ['-e', '--exclude file1,file2,directory3,…fileN', Array],
-      description: 'Files/directories to be excluded from documentation. '\
+      command_line: ['-e', '--exclude filepath1,filepath2,…filepathN', Array],
+      description: 'Source file pathnames to be excluded from documentation. '\
                    'Supports wildcards.',
       default: [],
       parse: ->(files) do
@@ -162,6 +171,7 @@ module Jazzy
       command_line: '--swift-version VERSION',
       default: nil,
       parse: ->(v) do
+        return nil if v.to_s.empty?
         raise 'jazzy only supports Swift 2.0 or later.' if v.to_f < 2
         v
       end
@@ -210,6 +220,8 @@ module Jazzy
 
     config_attr :podspec,
       command_line: '--podspec FILEPATH',
+      description: 'A CocoaPods Podspec that describes the Swift library to '\
+                   'document',
       parse: ->(ps) { PodspecDocumenter.create_podspec(Pathname(ps)) if ps },
       default: Dir['*.podspec{,.json}'].first
 
@@ -258,7 +270,8 @@ module Jazzy
       default: false
 
     config_attr :min_acl,
-      command_line: '--min-acl [private | internal | public]',
+      command_line:
+         '--min-acl [private | fileprivate | internal | public | open]',
       description: 'minimum access control level to document',
       default: 'public',
       parse: ->(acl) do
@@ -295,8 +308,11 @@ module Jazzy
                    'other assets for a custom theme.',
       default: 'apple',
       parse: ->(t) do
-        return expand_path(t) unless t == 'apple' || t == 'fullwidth'
-        Pathname(__FILE__).parent + 'themes' + t
+        if %w[apple fullwidth].include?(t)
+          Pathname(__FILE__).parent + 'themes' + t
+        else
+          expand_path(t)
+        end
       end
 
     config_attr :use_safe_filenames,
@@ -321,7 +337,13 @@ module Jazzy
         raise '--assets-directory is deprecated: use --theme instead.'
       end
 
-    # rubocop:enable Style/AlignParameters
+    config_attr :undocumented_text,
+      command_line: '--undocumented-text UNDOCUMENTED_TEXT',
+      description: 'Default text for undocumented symbols. The default '\
+                   'is "Undocumented", put "" if no text is required',
+      default: 'Undocumented'
+
+    # rubocop:enable Layout/AlignParameters
 
     def initialize
       self.class.all_config_attrs.each do |attr|
@@ -392,7 +414,7 @@ module Jazzy
       puts "Using config file #{config_path}"
       config_file = read_config_file(config_path)
 
-      attrs_by_conf_key, attrs_by_name = %i(config_file_key name).map do |prop|
+      attrs_by_conf_key, attrs_by_name = %i[config_file_key name].map do |prop|
         self.class.all_config_attrs.group_by(&prop)
       end
 
@@ -428,7 +450,14 @@ module Jazzy
     def read_config_file(file)
       case File.extname(file)
         when '.json'         then JSON.parse(File.read(file))
-        when '.yaml', '.yml' then YAML.safe_load(File.read(file))
+        when '.yaml', '.yml' then
+          if YAML.respond_to?('safe_load') # ruby >= 2.1.0
+            YAML.safe_load(File.read(file))
+          else
+            # rubocop:disable Security/YAMLLoad
+            YAML.load(File.read(file))
+            # rubocop:enable Security/YAMLLoad
+          end
         else raise "Config file must be .yaml or .json, but got #{file.inspect}"
       end
     end

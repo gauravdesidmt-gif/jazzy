@@ -1,6 +1,6 @@
 require 'pathname'
 
-require 'jazzy/jazzy_markdown'
+require 'jazzy/markdown'
 
 module Jazzy
   module ReadmeGenerator
@@ -18,7 +18,7 @@ module Jazzy
 
     def self.readme_path
       return config.readme_path if config.readme_path
-      %w(README.md README.markdown README.mdown README).each do |potential_name|
+      %w[README.md README.markdown README.mdown README].each do |potential_name|
         file = config.source_directory + potential_name
         return file if file.exist?
       end

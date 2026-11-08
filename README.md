@@ -2,7 +2,7 @@
 
 ![analytics](https://ga-beacon.appspot.com/UA-50247013-2/jazzy/README?pixel)
 
-[![Build Status](https://travis-ci.org/realm/jazzy.svg?branch=master)](https://travis-ci.org/realm/jazzy)
+[![Build Status](https://circleci.com/gh/realm/jazzy.svg?style=svg)](https://circleci.com/gh/realm/jazzy)
 
 *jazzy is a command-line utility that generates documentation for Swift or Objective-C*
 
@@ -49,12 +49,39 @@ all available options, run `jazzy --help config`.
 
 ### Supported keywords
 
-Swift header documentation is written in markdown and supports a number of special keywords.
-For a complete list and examples, see Erica Sadun's post on [*Swift header documentation in Xcode 7*](http://ericasadun.com/2015/06/14/swift-header-documentation-in-xcode-7/)
-and her [book on Swift Documentation Markup](https://itunes.apple.com/us/book/swift-documentation-markup/id1049010423).
+Swift documentation is written in markdown and supports a number of special keywords.
+For a complete list and examples, see Erica Sadun's post on [*Swift header documentation in Xcode 7*](http://ericasadun.com/2015/06/14/swift-header-documentation-in-xcode-7/),
+her [book on Swift Documentation Markup](https://itunes.apple.com/us/book/swift-documentation-markup/id1049010423), and the [Xcode Markup Formatting Reference](https://developer.apple.com/library/content/documentation/Xcode/Reference/xcode_markup_formatting_ref/).
 
 For Objective-C documentation the same keywords are supported, but note that the format
-is slightly different. In Swift you would write `- returns:`, but in Objective-C you write `@return`. See Apple's [*HeaderDoc User Guide*](https://developer.apple.com/legacy/library/documentation/DeveloperTools/Conceptual/HeaderDoc/tags/tags.html) for more details. **Note: `jazzy` currently does not support _all_ Objective-C keywords listed in this document.**
+is slightly different. In Swift you would write `- returns:`, but in Objective-C you write `@return`. See Apple's [*HeaderDoc User Guide*](https://developer.apple.com/legacy/library/documentation/DeveloperTools/Conceptual/HeaderDoc/tags/tags.html) for more details. **Note: `jazzy` currently does not support _all_ Objective-C keywords listed in this document, only @param, @return, @warning, @see, and @note.**
+
+Jazzy supports [GitHub Flavored Markdown](https://github.github.com/gfm/)
+including the table, strikethrough, and autolink extensions.
+
+Jazzy can generate cross-references within your documentation. A symbol name in
+backticks generates a link, for example:
+* \`MyClass\` - a link to documentation for `MyClass`.
+* \`MyClass.method(param1:)\` - a link to documentation for that method.
+* \`MyClass.method(...)\` - shortcut syntax for the same thing.
+* \`method(...)\` - shortcut syntax to link to `method` from the documentation of another
+  method or property in the same class.
+* \`[MyClass method1]\` - a link to an Objective-C method.
+* \`-[MyClass method2:param1]\` - a link to another Objective-C method.
+
+Markdown code blocks can have syntax highlighting.  The default language for
+code blocks in documentation comments is Swift or Objective-C depending on the
+symbol being documented.  Code blocks in other markdown files such as
+`README.md` default to plain text without any highlighting.  You can always
+override the default like this:
+````markdown
+```shell
+$ jazzy --clean
+```
+````
+Jazzy uses [Rouge](https://github.com/jneen/rouge) for syntax highlighting.  The
+list of supported languages is
+[here](https://github.com/jneen/rouge/wiki/List-of-supported-languages-and-lexers).
 
 ### Swift
 
@@ -86,9 +113,11 @@ parameters to jazzy:
 
 * `--objc`
 * `--umbrella-header ...`
-* `-framework-root ...`
+* `--framework-root ...`
 * `--sdk [iphone|watch|appletv][os|simulator]|macosx` (optional, default value
    of `macosx`)
+* `--hide-declarations [objc|swift]` (optional, hides the selected language
+   declarations)
 
 ##### Example
 
@@ -145,6 +174,7 @@ directory.
 | Example             | `--documentation=Docs/*.md` |
 | jazzy.yaml example  | `documentation: Docs/*.md` |
 
+By default, jazzy looks for one of README.md, README.markdown, README.mdown or README (in that order) in the directory from where it runs to render the index page at the root of the docs output directory.
 Using the `--documentation` option, extra markdown files can be integrated into the generated docs and sidebar navigation.
 
 Any files found matching the file pattern will be parsed and included as a document with the type 'Guide' when generated. If the files are not included using the `custom_categories` config option, they will be grouped under 'Other Guides' in the sidebar navigation.
@@ -171,15 +201,40 @@ This is very helpful when using `custom_categories` for grouping types and inclu
 
 For an example of a project using both `--documentation` and `--abstract` see: [http://reswift.github.io/ReSwift/](http://reswift.github.io/ReSwift/)
 
+### Controlling what is documented
+
+In Swift mode, Jazzy by default documents only `public` and `open` declarations. To
+include declarations with a lower access level, set the `--min-acl` flag to `internal`,
+`fileprivate`, or `private`.
+
+In Objective-C mode, Jazzy documents all declarations found in the `--umbrella-header`
+header file and any other header files included by it.
+
+You can then prevent some of these declarations from being documented using `--exclude`
+or `:nodoc:`.
+
+The `--exclude` flag lists source files to omit from the documentation. Entries in the
+list can be absolute pathnames beginning with `/` or relative pathnames. Relative
+pathnames are interpreted relative to the directory from where you run `jazzy` or, if the
+exclude flag is set in the config file, relative to the directory containing the config
+file. Entries in the list can match multiple files using `*` to match any number of
+characters including `/`.  For example:
+* `jazzy --exclude=/Users/fred/project/Sources/Secret.swift` -- exclude a specific file
+* `jazzy --exclude=/*/Internal*` -- exclude all files with names that begin with *Internal*
+  and any files under any directory with a name beginning *Internal*.
+* `jazzy --exclude=Impl1/*,Impl2/*` -- exclude all files under the directories *Impl1* and
+  *Impl2* found in the current directory.
+
+Declarations with a documentation comment containing `:nodoc:` are excluded from the
+documentation.
+
 ## Troubleshooting
 
 #### Swift
 
 **Only extensions are listed in the documentation?**
 
-By default, `jazzy` only documents public declarations. To generate documentation
-for declarations with a lower accessibility level (`internal` or `private`), please
-set the `--min-acl` flag to `internal` or `private`.
+Check the `--min-acl` setting -- see [above](#controlling-what-is-documented).
 
 ## Development
 
